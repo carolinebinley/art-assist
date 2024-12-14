@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "value-scale"
+version = "0.1.0"
+description = ""
+authors = ["Caroline Binley <carolinebbinley@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+opencv-python = "^4.10.0.84"
+matplotlib = "^3.9.4"
+streamlit = "^1.41.0"
+pillow = "^11.0.0"
+pillow-heif = "^0.21.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
