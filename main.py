@@ -27,6 +27,23 @@ def simplify(image, num_bins, white_point):
     return simplified_image
 
 
+def overlay_grid(image, rows, cols, color=(100, 255, 0), thickness=2):
+    grid_image = image.copy()
+    height, width = grid_image.shape[:2]
+
+    # Draw horizontal lines
+    for i in range(1, rows):
+        y = i * height // rows
+        cv2.line(grid_image, (0, y), (width, y), color, thickness)
+
+    # Draw vertical lines
+    for j in range(1, cols):
+        x = j * width // cols
+        cv2.line(grid_image, (x, 0), (x, height), color, thickness)
+
+    return grid_image
+
+
 def render_ui():
     st.title("Image Simplifier")
 
@@ -48,6 +65,12 @@ def render_ui():
         side_by_side = st.checkbox("Side-by-side", value=True)
         output_width = 350 if side_by_side else 700
 
+    grid_overlay = st.checkbox("Overlay Grid", value=False)
+    if grid_overlay:
+        rows = cols = st.slider("Grid Rows", min_value=1, max_value=20, value=10)
+        grid_color = st.color_picker("Grid Color", value="#8C8C8C")
+        grid_color = tuple(int(grid_color.lstrip("#")[i:i+2], 16) for i in (0, 2, 4))
+
     with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as temp_file:
         temp_file.write(uploaded_file.getbuffer())
 
@@ -66,6 +89,9 @@ def render_ui():
         simplified_image = cv2.cvtColor(resized_image, cv2.COLOR_BGR2GRAY)
 
     simplified_image = simplify(simplified_image, n_bins, white_point)
+
+    if grid_overlay:
+        simplified_image = overlay_grid(simplified_image, rows, cols, grid_color)
 
     st.image(
         [simplified_image, resized_image],
