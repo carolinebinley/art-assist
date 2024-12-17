@@ -87,7 +87,18 @@ def load_uploaded_image(uploaded_file):
 
 
 def render_ui():
-    st.title("Image Simplifier")
+    st.title("Art Assist")
+    st.info(
+        "This app provides tools to simplify and analyze images. It's meant to help artists "
+        "better understand the values, colors, and compositions of their reference images.\n\n"
+        "The app is currently optimized for computer, not mobile, use.\n\n"
+        "Upload an image and adjust the settings to see the simplified version.\n\n"
+    )
+    st.warning(
+        "This app is a work in progress. If you encounter any issues or have suggestions, "
+        "please let me know by creating an issue on the [GitHub repository]"
+        "(https://github.com/carolinebinley/art-assist)."
+    )
 
     uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png", "heic"])
     if uploaded_file is None:
