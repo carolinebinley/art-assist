@@ -1,9 +1,11 @@
+import tempfile
+from typing import Protocol
+
 import cv2
 import numpy as np
 import streamlit as st
-import tempfile
-from PIL import Image
 import pillow_heif
+from PIL import Image
 
 
 def resize(image, width):
@@ -44,6 +46,46 @@ def overlay_grid(image, rows, cols, color=(100, 255, 0), thickness=2):
     return grid_image
 
 
+class ImageLoader(Protocol):
+    def load(self, file_path: str) -> np.ndarray:
+        ...
+
+
+class HEICImageLoader:
+    def load(self, file_path: str) -> np.ndarray:
+        heif_image = pillow_heif.read_heif(file_path)
+        pil_image = Image.frombytes(
+            heif_image.mode, heif_image.size, heif_image.data
+        )
+        return np.array(pil_image)
+
+
+class JPGImageLoader:
+    def load(self, file_path: str) -> np.ndarray:
+        return np.flip(cv2.imread(file_path), axis=-1)
+
+
+def get_image_loader(file_path: str) -> ImageLoader:
+    image_loaders = {
+        ".heic": HEICImageLoader,
+        ".jpg": JPGImageLoader,
+        ".jpeg": JPGImageLoader,
+        ".png": JPGImageLoader,
+    }
+    for extension, image_loader_class in image_loaders.items():
+        if file_path.lower().endswith(extension):
+            return image_loader_class()
+    raise ValueError("Unsupported file format")
+
+
+def load_uploaded_image(uploaded_file):
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        temp_file.write(uploaded_file.getbuffer())
+        image_loader = get_image_loader(uploaded_file.name)
+        image = image_loader.load(temp_file.name)
+    return image
+
+
 def render_ui():
     st.title("Image Simplifier")
 
@@ -62,39 +104,26 @@ def render_ui():
 
     with column_3:
         black_and_white = st.checkbox("Black-and-white", value=False)
+        grid_overlay = st.checkbox("Overlay Grid", value=False)
         side_by_side = st.checkbox("Side-by-side", value=True)
         output_width = 350 if side_by_side else 700
 
-    grid_overlay = st.checkbox("Overlay Grid", value=False)
-    if grid_overlay:
-        rows = cols = st.slider("Grid Rows", min_value=1, max_value=20, value=10)
-        grid_color = st.color_picker("Grid Color", value="#8C8C8C")
-        grid_color = tuple(int(grid_color.lstrip("#")[i:i+2], 16) for i in (0, 2, 4))
-
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as temp_file:
-        temp_file.write(uploaded_file.getbuffer())
-
-        if uploaded_file.name.lower().endswith(".heic"):
-            heif_image = pillow_heif.read_heif(temp_file.name)
-            pil_image = Image.frombytes(
-                heif_image.mode, heif_image.size, heif_image.data
-            )
-            original_image = np.array(pil_image)
-        else:
-            original_image = np.flip(cv2.imread(temp_file.name), axis=-1)
-
-    resized_image = simplified_image = resize(original_image, output_width)
+    original_image = load_uploaded_image(uploaded_file)
+    original_image = simplified_image = resize(original_image, output_width)
 
     if black_and_white:
-        simplified_image = cv2.cvtColor(resized_image, cv2.COLOR_BGR2GRAY)
+        simplified_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2GRAY)
 
     simplified_image = simplify(simplified_image, n_bins, white_point)
 
     if grid_overlay:
+        rows = cols = st.slider("Grid Rows", min_value=1, max_value=20, value=10)
+        grid_color = st.color_picker("Grid Color", value="#8C8C8C")
+        grid_color = tuple(int(grid_color.lstrip("#")[i:i+2], 16) for i in (0, 2, 4))
         simplified_image = overlay_grid(simplified_image, rows, cols, grid_color)
 
     st.image(
-        [simplified_image, resized_image],
+        [simplified_image, original_image],
         caption=["Simplified", "Original"],
     )
 
